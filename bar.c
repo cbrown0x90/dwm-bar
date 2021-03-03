@@ -11,7 +11,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include "sound.h"
+#include <alsa/asoundlib.h>
+//#include "sound.h"
 
 #define KILO 1024
 #define MEGA 1048576
@@ -131,20 +132,34 @@ int getSleep(char* bar, int remaining)
 int getVolume(char* bar, int remaining, snd_mixer_selem_id_t* sid)
 {
     // Setup handle
+    puts("1");
     snd_mixer_t* handle;
-    snd_mixer_open(&handle, 0);
-    snd_mixer_attach(handle, "default");
+    puts("1.1");
+    int hmm = snd_mixer_open(&handle, 0);
+    printf("%d\n", hmm);
+    puts("1.2");
+    int card = snd_card_get_index("default");
+    printf("%d\n", card);
+    snd_hctl_t* ctl;
+    snd_hctl_open(&ctl, "default", SND_CTL_NONBLOCK);
+    puts("1.2.1");
+    snd_mixer_attach_hctl(handle, ctl);
+    puts("1.3");
     snd_mixer_selem_register(handle, NULL, NULL);
+    puts("1.4");
     snd_mixer_load(handle);
+    puts("1.5");
 
     long vol, min, max;
     int on;
 
+    puts("2");
     // setup mixer and get values
     snd_mixer_elem_t* mixer = snd_mixer_find_selem(handle, sid);
     snd_mixer_selem_get_playback_switch(mixer, SND_MIXER_SCHN_MONO, &on);
     snd_mixer_selem_get_playback_volume(mixer, SND_MIXER_SCHN_MONO, &vol);
     snd_mixer_selem_get_playback_volume_range(mixer, &min, &max);
+    puts("3");
 
     // Calculate the current volume percentage
     long vol_tmp = (vol * 1000 / max) % 10;
@@ -230,9 +245,11 @@ int main()
 
         offset += getSleep(bar + offset, BARLEN - offset);
 
+        /* TODO rewrite volume to use pulseaudio
         offset += separator(bar + offset, BARLEN - offset);
 
         offset += getVolume(bar + offset, BARLEN - offset, sid);
+        */
 
         offset += separator(bar + offset, BARLEN - offset);
 
@@ -243,6 +260,7 @@ int main()
 
         newdifftimespec(&wait, &end, &start);
 
+        // TODO make this optional
         puts(bar);
         XStoreName(dpy, DefaultRootWindow(dpy), bar);
         XFlush(dpy);
